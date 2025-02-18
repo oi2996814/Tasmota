@@ -1,6 +1,6 @@
 {
   "name":"freetype",
-  "version": "2.10.4",
+  "version": "2.13.2",
   "description":"Software library to render fonts",
   "keywords":"freetype",
   "license": "FreeType License",
@@ -15,6 +15,7 @@
         "+<base/ftsystem.c>",
         "+<base/ftinit.c>",
         "+<base/ftdebug.c>",
+        "+<base/ftbitmap.c>",
 
         "+<base/ftbase.c>",
 

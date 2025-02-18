@@ -1,18 +1,21 @@
 #- Native code used for testing and code solidification -#
 #- Do not use it -#
 
+#@ solidify:Wire.read_bytes
+#@ solidify:Wire.write_bytes
 class Wire
   var bus
 
-  def read_bytes(addr,reg,size)
+  def read_bytes(addr, reg, sz)
     self._begin_transmission(addr)
     self._write(reg)
-    self._end_transmission(false)
-    self._request_from(addr,size)
-    var ret=bytes(size)
+    self._end_transmission(true)
+    self._request_from(addr, sz)
+    var ret = bytes(sz)
     while (self._available())
-      ret..self._read()
+      ret.append(self._read())
     end
+    self._end_transmission(true)
     return ret
   end
   

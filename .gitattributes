@@ -16,5 +16,8 @@
 *.rtf	 diff=astextplain
 *.RTF	 diff=astextplain
 
-# Apply Python syntax highlighting to berry (.be) files
-*.be linguist-language=Python
+# No changes for zip files
+*.zip binary
+*.autoconf binary
+*.bin binary
+*.tapp binary

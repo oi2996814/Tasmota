@@ -5,13 +5,13 @@
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE
-#include "lvgl.h"
+    #include "lvgl.h"
 #else
-#include "../../lvgl.h"
+    #include "../../lvgl.h"
 #endif
 
 #ifndef LV_FONT_MONTSERRAT_46
-#define LV_FONT_MONTSERRAT_46 1
+    #define LV_FONT_MONTSERRAT_46 1
 #endif
 
 #if LV_FONT_MONTSERRAT_46
@@ -11187,7 +11187,6 @@ static LV_ATTRIBUTE_LARGE_CONST const uint8_t glyph_bitmap[] = {
     0x0
 };
 
-
 /*---------------------
  *  GLYPH DESCRIPTION
  *--------------------*/
@@ -11369,8 +11368,7 @@ static const uint16_t unicode_list_1[] = {
 };
 
 /*Collect the unicode lists and glyph_id offsets*/
-static const lv_font_fmt_txt_cmap_t cmaps[] =
-{
+static const lv_font_fmt_txt_cmap_t cmaps[] = {
     {
         .range_start = 32, .range_length = 95, .glyph_id_start = 1,
         .unicode_list = NULL, .glyph_id_ofs_list = NULL, .list_length = 0, .type = LV_FONT_FMT_TXT_CMAP_FORMAT0_TINY
@@ -11385,10 +11383,8 @@ static const lv_font_fmt_txt_cmap_t cmaps[] =
  *    KERNING
  *----------------*/
 
-
 /*Map glyph_ids to kern left classes*/
-static const uint8_t kern_left_class_mapping[] =
-{
+static const uint8_t kern_left_class_mapping[] = {
     0, 0, 1, 2, 0, 3, 4, 5,
     2, 6, 7, 8, 9, 10, 9, 10,
     11, 12, 0, 13, 14, 15, 16, 17,
@@ -11412,8 +11408,7 @@ static const uint8_t kern_left_class_mapping[] =
 };
 
 /*Map glyph_ids to kern right classes*/
-static const uint8_t kern_right_class_mapping[] =
-{
+static const uint8_t kern_right_class_mapping[] = {
     0, 0, 1, 2, 0, 3, 4, 5,
     2, 6, 7, 8, 9, 10, 9, 10,
     11, 12, 13, 14, 15, 16, 17, 12,
@@ -11437,8 +11432,7 @@ static const uint8_t kern_right_class_mapping[] =
 };
 
 /*Kern values between classes*/
-static const int8_t kern_class_values[] =
-{
+static const int8_t kern_class_values[] = {
     0, 2, 0, 0, 0, 0, 0, 0,
     0, 2, 0, 0, 7, 0, 0, 0,
     0, 5, 0, 0, 0, 0, 0, 0,
@@ -11815,10 +11809,8 @@ static const int8_t kern_class_values[] =
     0, 0, 0, 0, 0
 };
 
-
 /*Collect the kern class' data in one place*/
-static const lv_font_fmt_txt_kern_classes_t kern_classes =
-{
+static const lv_font_fmt_txt_kern_classes_t kern_classes = {
     .class_pair_values   = kern_class_values,
     .left_class_mapping  = kern_left_class_mapping,
     .right_class_mapping = kern_right_class_mapping,
@@ -11830,9 +11822,9 @@ static const lv_font_fmt_txt_kern_classes_t kern_classes =
  *  ALL CUSTOM DATA
  *--------------------*/
 
-#if LV_VERSION_CHECK(8, 0, 0)
+#if LVGL_VERSION_MAJOR >= 8
 /*Store all the custom data of the font*/
-static  lv_font_fmt_txt_glyph_cache_t cache;
+
 static const lv_font_fmt_txt_dsc_t font_dsc = {
 #else
 static lv_font_fmt_txt_dsc_t font_dsc = {
@@ -11846,18 +11838,15 @@ static lv_font_fmt_txt_dsc_t font_dsc = {
     .bpp = 4,
     .kern_classes = 1,
     .bitmap_format = 0,
-#if LV_VERSION_CHECK(8, 0, 0)
-    .cache = &cache
-#endif
-};
 
+};
 
 /*-----------------
  *  PUBLIC FONT
  *----------------*/
 
 /*Initialize a public general font descriptor*/
-#if LV_VERSION_CHECK(8, 0, 0)
+#if LVGL_VERSION_MAJOR >= 8
 const lv_font_t lv_font_montserrat_46 = {
 #else
 lv_font_t lv_font_montserrat_46 = {
@@ -11869,14 +11858,11 @@ lv_font_t lv_font_montserrat_46 = {
 #if !(LVGL_VERSION_MAJOR == 6 && LVGL_VERSION_MINOR == 0)
     .subpx = LV_FONT_SUBPX_NONE,
 #endif
-#if LV_VERSION_CHECK(7, 4, 0)
+#if LV_VERSION_CHECK(7, 4, 0) || LVGL_VERSION_MAJOR >= 8
     .underline_position = -3,
     .underline_thickness = 2,
 #endif
     .dsc = &font_dsc           /*The custom font data. Will be accessed by `get_glyph_bitmap/dsc` */
 };
 
-
-
 #endif /*#if LV_FONT_MONTSERRAT_46*/
-

@@ -34,19 +34,19 @@ static void class_init(bvm *vm, bclass *c, const bnfuncinfo *lib)
         while (lib->name) {
             bstring *s = be_newstr(vm, lib->name);
             if (lib->function) { /* method */
-                be_prim_method_bind(vm, c, s, lib->function);
+                be_class_native_method_bind(vm, c, s, lib->function);
             } else {
-                be_member_bind(vm, c, s, btrue); /* member */
+                be_class_member_bind(vm, c, s, btrue); /* member */
             }
             ++lib;
         }
-        if (lib->function == (bntvfunc) BE_CLOSURE) {
+        if (lib->function == (bntvfunc)BE_CLOSURE) {
             /* next section is closures */
             struct solidfuncinfo *slib = (struct solidfuncinfo*)++lib;
             while (slib->name) {
                 if (slib->function) { /* method */
                     bstring *s = be_newstr(vm, slib->name);
-                    be_closure_method_bind(vm, c, s, slib->function);
+                    be_class_closure_method_bind(vm, c, s, slib->function);
                 }
                 ++slib;
             }
@@ -207,6 +207,31 @@ BERRY_API bbool be_isinstance(bvm *vm, int index)
     bvalue *v = be_indexof(vm, index);
     return var_isinstance(v);
 }
+
+static bbool be_isinstanceofbuiltin(bvm *vm, int rel_index, const char *classname)
+{
+    bbool ret = bfalse;
+    int index = be_absindex(vm, rel_index);
+    if (be_isinstance(vm, index)) {
+        be_getbuiltin(vm, classname);
+        if (be_isderived(vm, index)) {
+            ret = btrue;
+        }
+        be_pop(vm, 1);
+    }
+    return ret;
+}
+
+BERRY_API bbool be_ismapinstance(bvm *vm, int index)
+{
+    return be_isinstanceofbuiltin(vm, index, "map");
+}
+
+BERRY_API bbool be_islistinstance(bvm *vm, int index)
+{
+    return be_isinstanceofbuiltin(vm, index, "list");
+}
+
 
 BERRY_API bbool be_ismodule(bvm *vm, int index)
 {
@@ -618,6 +643,10 @@ BERRY_API bbool be_setmember(bvm *vm, int index, const char *k)
         bstring *key = be_newstr(vm, k);
         bmodule *mod = var_toobj(o);
         return be_module_setmember(vm, mod, key, v);
+    } else if (var_isclass(o)) {
+        bstring *key = be_newstr(vm, k);
+        bclass *cl = var_toobj(o);
+        return be_class_setmember(vm, cl, key, v);
     }
     return bfalse;
 }
@@ -636,6 +665,7 @@ BERRY_API bbool be_copy(bvm *vm, int index)
 }
 
 /* `onlyins` limits the search to instance, and discards module. Makes sure getmethod does not return anything for module. */
+/* may return BE_NONE */
 static int ins_member(bvm *vm, int index, const char *k, bbool onlyins)
 {
     int type = BE_NIL;
@@ -652,15 +682,12 @@ static int ins_member(bvm *vm, int index, const char *k, bbool onlyins)
         bmodule *module = var_toobj(o);
         type = be_module_attr(vm, module, be_newstr(vm, k), top);
     }
-    if (type == BE_NONE) {
-        type = BE_NIL;
-    }
     return type;
 }
 
 BERRY_API bbool be_getmember(bvm *vm, int index, const char *k)
 {
-    return ins_member(vm, index, k, bfalse) != BE_NIL;
+    return ins_member(vm, index, k, bfalse) != BE_NONE;
 }
 
 BERRY_API bbool be_getmethod(bvm *vm, int index, const char *k)
@@ -705,10 +732,13 @@ BERRY_API bbool be_getindex(bvm *vm, int index)
 static bvalue* list_setindex(blist *list, bvalue *key)
 {
     int idx = var_toidx(key);
-    if (idx < be_list_count(list)) {
-        return be_list_at(list, idx);
+    if (idx < 0) {
+        idx = list->count + idx;
     }
-    return NULL;
+    if (idx < 0 || idx >= list->count) {
+        return NULL;
+    }
+    return be_list_at(list, idx);
 }
 
 BERRY_API bbool be_setindex(bvm *vm, int index)
@@ -1016,7 +1046,9 @@ BERRY_API int be_pcall(bvm *vm, int argc)
     return be_protectedcall(vm, f, argc);
 }
 
+#ifdef __GNUC__
 __attribute__((noreturn))
+#endif
 BERRY_API void be_raise(bvm *vm, const char *except, const char *msg)
 {
     be_pushstring(vm, except);
@@ -1144,30 +1176,4 @@ BERRY_API bbool be_isge(bvm *vm)
 {
     be_assert(vm->reg + 2 <= vm->top);
     return be_vm_isge(vm, vm->top - 2, vm->top - 1);
-}
-
-BERRY_API int be_register(bvm *vm, int index)
-{
-    bvalue *v;
-    if (!vm->registry) {
-        vm->registry = be_list_new(vm);
-        be_list_pool_init(vm, vm->registry);
-    }
-    be_assert(vm->registry != NULL);
-    v = be_indexof(vm, index);
-    return be_list_pool_alloc(vm, vm->registry, v);
-}
-
-BERRY_API void be_unregister(bvm *vm, int id)
-{
-    be_assert(vm->registry != NULL);
-    be_list_pool_free(vm->registry, id);
-}
-
-BERRY_API void be_getregister(bvm *vm, int id)
-{
-    blist *reg = vm->registry;
-    be_assert(reg && id > 0 && id < be_list_count(reg));
-    var_setval(vm->top, be_list_at(reg, id));
-    be_incrtop(vm);
 }

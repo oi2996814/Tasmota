@@ -13,50 +13,134 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
  */
-#pragma once
+#ifndef __ESP8266TOESP32_H__
+#define __ESP8266TOESP32_H__
+
 #ifdef ESP32
-// my debug Stuff
-#define Serial_Debug1(p) Serial.printf p
-#define Serial_DebugX(p)
 
 //
 // basics
 //
-// dummy defines
-//#define SPIFFS_END (SPI_FLASH_SEC_SIZE * 200)
-//#define SETTINGS_LOCATION SPIFFS_END
-
 #include <Esp.h>
 
-#if CONFIG_IDF_TARGET_ESP32C3
-  #define PWM_SUPPORTED_CHANNELS 6
-  #define PWM_CHANNEL_OFFSET     1   // Webcam uses channel 0, so we offset standard PWM
-#else // other ESP32
-  #define PWM_SUPPORTED_CHANNELS 8
-  #define PWM_CHANNEL_OFFSET     2   // Webcam uses channel 0, so we offset standard PWM
-#endif // CONFIG_IDF_TARGET_ESP32C3 vs ESP32
+/*******************************************************************************************\
+ * ESP32/S2/S3/C3... PWM analog support
+ *
+ * The following supersedes Arduino framework and provides more granular control:
+ * - fine grained phase control (in addition to duty cycle)
+ * - fine control of PWM frequency and resolution per GPIO
+ *
+ * By default, all PWM are using the same timer called Timer 0.
+ * Changes in frequency of resolution apply to all PWM using Timer 0.
+ *
+ * You can specify a different a different resolution/frequency for
+ * specific GPIOs, this will internally assign a new timer to the GPIO.
+ * The limit is 3 specific values in addition to the global value.
+ *
+ * Note: on ESP32-only, there are 2 groups of PWM and 2 groups of timers.
+ * Although there are internally 8 timers, to simplifiy management,
+ * Timer 4..7 are mirrored from Timer 0..3.
+ * So it all happens like if there were only 4 timers and a single group of PWM channels.
+\*******************************************************************************************/
 
-extern uint8_t _pwm_channel[PWM_SUPPORTED_CHANNELS];
-extern uint32_t _pwm_frequency;
-extern uint8_t _pwm_bit_num;
+extern "C" uint32_t ledcReadFreq2(uint8_t chan);
+uint8_t ledcReadResolution(uint8_t chan);
 
-void _analogWriteFreqRange(void);
-// input range is in full range, ledc needs bits
-uint32_t _analogGetResolution(uint32_t x);
-void analogWriteRange(uint32_t range);
-void analogWriteFreq(uint32_t freq);
-bool analogAttach(uint32_t pin);
+//
+// analogAttach - attach a GPIO to a hardware PWM
+//
+// Calling explcitly analogAttach() allows to specify the `output_invert` flag
+// However it is called implicitly if `analogWrite()` is called and the GPIO
+// was not yet attached.
+//
+// Returns: hardware channel number, or -1 if it failed
+int32_t analogAttach(uint32_t pin, bool output_invert = false);   // returns the ledc channel, or -1 if failed. This is implicitly called by analogWrite if the channel was not already allocated
+
+//
+// analogDetach - detach attached GPIO from a hardware PWM
+//
+void analogDetach(uint32_t pin);
+
+//
+// analogDetachAll - detach all attached GPIOs from a hardware PWM
+//
+// This solves ghost PWM activity on reconfigured GPIOs after a restart
+void analogDetachAll(void);
+
+// change both freq and range
+// `0`: set to global value
+// `-1`: keep unchanged
+// if pin < 0 then change global value for timer 0
+
+//
+// analogWriteFreqRange - change the range and/or frequency of a GPIO
+//
+// `void analogWriteFreqRange(int32_t freq, int32_t range, int32_t pin)`
+//
+// The range is converted to a number of bits, so range must be a power of 2 minus 1.
+// By default, the resolution is 10 bits, i.e. a range of 1023.
+//
+// Special cases:
+// - if `pin < 0`, changes the global value for Timer 0 and all PWM using default
+// - if `range == 0` or `freq == 0`, revert to using Timer 0 (i.e. reassign to global values)
+// - if `range < 0` or `freq < 0`, keep the previous value unchanged
+// - if `pin` is unassigned, silently ignore
+void analogWriteFreqRange(int32_t freq, int32_t range, int32_t pin = -1);
+
+//
+// analogWriteRange - change the range of PWM
+//
+// short-cut for:
+// `analogWriteFreqRange(-1, range, pin)`
+void analogWriteRange(uint32_t range, int32_t pin = -1);
+
+//
+// analogWriteFreq - change the frequency of PWM in Hz
+//
+// short-cut for:
+// `analogWriteFreqRange(-1, range, pin)`
+void analogWriteFreq(uint32_t freq, int32_t pin = -1);
+
+//
+// analogWrite - change the value of PWM
+//
+// val must be in range.
 void analogWrite(uint8_t pin, int val);
 
 // Extended version that also allows to change phase
 extern void analogWritePhase(uint8_t pin, uint32_t duty, uint32_t phase = 0);
 
+//
+// ledcReadDutyResolution - read the resolution
+//
+// return -1 if pin is not assigned to ledc
+int32_t ledcReadDutyResolution(uint8_t pin);
+
+//
+// ledcRead2 - read the value of PWM
+//
+// return -1 if pin is not assigned to ledc
+int32_t ledcRead2(uint8_t pin);
+
+// return the channel assigned to a GPIO, or -1 if none
+extern int32_t analogGetChannel2(uint32_t pin);
+
+/*******************************************************************************************\
+ * Low-level Timer management
+\*******************************************************************************************/
+// get the timer number for a GPIO, -1 if not found
+int32_t analogGetTimer(uint8_t pin);
+int32_t analogGetTimerForChannel(uint8_t chan);
+
+// Get timer resolution (in bits) - default 10
+uint8_t analogGetTimerResolution(uint8_t timer);
+
+// Get timer frequency (in Hz) - default 977
+uint32_t analogGetTimerFrequency(uint8_t timer);
 
 /*********************************************************************************************/
 
 #define INPUT_PULLDOWN_16 INPUT_PULLUP
-
-typedef double real64_t;
 
 //
 // Time and Timer
@@ -65,24 +149,22 @@ typedef double real64_t;
 #define ETS_UART_INTR_ENABLE()
 
 #define ESPhttpUpdate httpUpdate
-#define getFlashChipRealSize() getFlashChipSize()
 
+#if ESP_IDF_VERSION_MAJOR >= 5
+#include "rom/ets_sys.h"
+#else
 #define os_delay_us ets_delay_us
+#endif
+
 // Serial minimal type to hold the config
 typedef int SerConfu8;
-typedef int SerialConfig;
-//#define analogWrite(a, b)
+//typedef int SerialConfig;  // Will be replaced enum in esp32_hal-uart.h (#7926)
 
 //
 // UDP
 //
 //#define PortUdp_writestr(log_data) PortUdp.write((const uint8_t *)(log_data), strlen(log_data))
 #define PortUdp_write(log_data, n) PortUdp.write((const uint8_t *)(log_data), n)
-
-//
-#define wifi_forceSleepBegin()
-
-#undef LWIP_IPV6
 
 #define REASON_DEFAULT_RST      0  // "Power on"                normal startup by power on
 #define REASON_WDT_RST          1  // "Hardware Watchdog"       hardware watch dog reset
@@ -106,4 +188,13 @@ typedef int SerialConfig;
 
 #define STATION_IF 0
 
-#endif
+
+// ESP32 needed define to support IDF 5.2 based Arduino builds
+
+// Name has changed
+#ifdef LCD_CAM_LCD_UPDATE_M
+#define LCD_CAM_LCD_UPDATE_REG LCD_CAM_LCD_UPDATE_M
+#endif // LCD_CAM_LCD_UPDATE_M
+
+#endif // ESP32
+#endif // __ESP8266TOESP32_H__

@@ -20,7 +20,9 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include <core_version.h>
+#if __has_include("core_version.h")         // ESP32 Stage has no core_version.h file. Disable include via PlatformIO Option
+#include <core_version.h>                   // Arduino_Esp8266 version information (ARDUINO_ESP8266_RELEASE and ARDUINO_ESP8266_RELEASE_2_7_1)
+#endif  // ESP32_STAGE
 
 #ifndef wificlientlightbearssl_h
 #define wificlientlightbearssl_h
@@ -83,6 +85,10 @@ class WiFiClientSecure_light : public WiFiClient {
       _fingerprint2 = f2;
       _fingerprint_any = f_any;
       _insecure = true;
+      _rsa_only = true;     // if fingerprint, we limit to RSA only
+    }
+    void setRSAOnly(bool rsa_only) {
+      _rsa_only = rsa_only;
     }
     const uint8_t * getRecvPubKeyFingerprint(void) {
       return _recv_fingerprint;
@@ -126,7 +132,12 @@ class WiFiClientSecure_light : public WiFiClient {
 
     void setInsecure();
 
+    void setDomainName(const char * domain) {
+      _domain = domain;
+    }
+
   private:
+    uint32_t _loopTimeout=5000;
     void _clear();
     bool _ctx_present;
     std::shared_ptr<br_ssl_client_context> _sc;
@@ -143,14 +154,10 @@ class WiFiClientSecure_light : public WiFiClient {
 
     bool _fingerprint_any;            // accept all fingerprints
     bool _insecure;                   // force fingerprint
+    bool _rsa_only;                   // restrict to RSA only key exchange (no ECDSA - enabled to force RSA fingerprints)
     const uint8_t *_fingerprint1;          // fingerprint1 to be checked against
     const uint8_t *_fingerprint2;          // fingerprint2 to be checked against
-// **** Start patch Castellucci
-/*
     uint8_t _recv_fingerprint[20];   // fingerprint received
-*/
-    uint8_t _recv_fingerprint[21];   // fingerprint received
-// **** End patch Castellucci
 
     unsigned char *_recvapp_buf;
     size_t _recvapp_len;
@@ -171,6 +178,9 @@ class WiFiClientSecure_light : public WiFiClient {
 
     // record the maximum use of ThunkStack for monitoring
     size_t _max_thunkstack_use;
+
+    // domain name (string) that will be used with SNI when the address provided is already resolved
+    String _domain;
 
     // ALPN
     const char ** _alpn_names;

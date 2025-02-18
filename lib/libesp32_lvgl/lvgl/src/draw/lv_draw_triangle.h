@@ -22,28 +22,39 @@ extern "C" {
 /**********************
  *      TYPEDEFS
  **********************/
+typedef struct {
+    lv_draw_dsc_base_t base;
+
+    lv_opa_t bg_opa;
+    lv_color_t bg_color;
+    lv_grad_dsc_t bg_grad;
+
+    lv_point_precise_t p[3];
+} lv_draw_triangle_dsc_t;
 
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
 
 /**
- * Draw a triangle
- * @param points pointer to an array with 3 points
- * @param clip_area the triangle will be drawn only in this area
- * @param draw_dsc pointer to an initialized `lv_draw_rect_dsc_t` variable
+ * Initialize a triangle draw descriptor
+ * @param draw_dsc  pointer to a draw descriptor
  */
-void lv_draw_triangle(const lv_point_t points[], const lv_area_t * clip, const lv_draw_rect_dsc_t * draw_dsc);
+void lv_draw_triangle_dsc_init(lv_draw_triangle_dsc_t * draw_dsc);
 
 /**
- * Draw a polygon. Only convex polygons are supported.
- * @param points an array of points
- * @param point_cnt number of points
- * @param clip_area polygon will be drawn only in this area
- * @param draw_dsc pointer to an initialized `lv_draw_rect_dsc_t` variable
+ * Try to get a triangle draw descriptor from a draw task.
+ * @param task      draw task
+ * @return          the task's draw descriptor or NULL if the task is not of type LV_DRAW_TASK_TYPE_TRIANGLE
  */
-void lv_draw_polygon(const lv_point_t points[], uint16_t point_cnt, const lv_area_t * mask,
-                     const lv_draw_rect_dsc_t * draw_dsc);
+lv_draw_triangle_dsc_t * lv_draw_task_get_triangle_dsc(lv_draw_task_t * task);
+
+/**
+ * Create a triangle draw task
+ * @param layer     pointer to a layer
+ * @param draw_dsc  pointer to an initialized `lv_draw_triangle_dsc_t` object
+ */
+void lv_draw_triangle(lv_layer_t * layer, const lv_draw_triangle_dsc_t * draw_dsc);
 
 /**********************
  *      MACROS
